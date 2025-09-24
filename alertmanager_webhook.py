@@ -16,14 +16,42 @@ logger = logging.getLogger(__name__)
 @app.route('/webhook', methods=['POST'])
 def alertmanager_webhook():
     try:
+        # Log complete request details
+        logger.info("=" * 80)
+        logger.info("WEBHOOK REQUEST RECEIVED")
+        logger.info("=" * 80)
+
+        # Log request headers
+        logger.info("REQUEST HEADERS:")
+        for header_name, header_value in request.headers.items():
+            logger.info(f"  {header_name}: {header_value}")
+
+        # Log request metadata
+        logger.info(f"METHOD: {request.method}")
+        logger.info(f"URL: {request.url}")
+        logger.info(f"REMOTE_ADDR: {request.remote_addr}")
+        logger.info(f"USER_AGENT: {request.headers.get('User-Agent', 'Not provided')}")
+        logger.info(f"CONTENT_TYPE: {request.content_type}")
+        logger.info(f"CONTENT_LENGTH: {request.content_length}")
+
+        # Log raw request data
+        raw_data = request.get_data(as_text=True)
+        logger.info("RAW REQUEST BODY:")
+        logger.info(raw_data)
+
         if request.content_type != 'application/json':
             logger.warning(f"Unexpected content type: {request.content_type}")
             return jsonify({'error': 'Content-Type must be application/json'}), 400
-        
+
         payload = request.get_json()
         if not payload:
+            logger.error("Failed to parse JSON payload")
             return jsonify({'error': 'Invalid JSON payload'}), 400
-        
+
+        # Log parsed JSON payload with pretty formatting
+        logger.info("PARSED JSON PAYLOAD:")
+        logger.info(json.dumps(payload, indent=2, default=str))
+
         logger.info(f"Received webhook with {len(payload.get('alerts', []))} alerts")
         
         for alert in payload.get('alerts', []):
@@ -38,10 +66,17 @@ def alertmanager_webhook():
             elif status == 'resolved':
                 handle_resolved_alert(alert)
         
+        logger.info("=" * 80)
+        logger.info("WEBHOOK PROCESSING COMPLETED SUCCESSFULLY")
+        logger.info("=" * 80)
+
         return jsonify({'status': 'received'}), 200
-        
+
     except Exception as e:
-        logger.error(f"Error processing webhook: {str(e)}")
+        logger.error("=" * 80)
+        logger.error("WEBHOOK PROCESSING FAILED")
+        logger.error(f"Error: {str(e)}")
+        logger.error("=" * 80)
         return jsonify({'error': 'Internal server error'}), 500
 
 def handle_firing_alert(alert):
